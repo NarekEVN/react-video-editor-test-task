@@ -40,6 +40,7 @@ Create a `.env` file in the project root and add the following:
 
 ```env
 PEXELS_API_KEY=""
+MONGO_URI=""
 ```
 
 Clone locally:
