@@ -212,7 +212,6 @@ export function SelectionGroupsModal({
       mergedDesign.selection = {
         trackItemIds: selectedTrackItemIds,
       };
-      console.log(mergedDesign);
       dispatch(DESIGN_LOAD, { payload: mergedDesign });
       (window as any).__design = mergedDesign;
 
