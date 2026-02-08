@@ -27,6 +27,11 @@ class ThumbnailCache {
     return img;
   }
 
+  // Check if fallback pattern exists
+  public get hasFallbackPattern(): boolean {
+    return this.cache["fallback"] !== undefined;
+  }
+
   public clearCache() {
     this.cache = {};
     this.accessOrder = [];

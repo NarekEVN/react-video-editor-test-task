@@ -16,18 +16,21 @@ export const Video = ({
   const { fps, frame } = options;
   const { details, animations } = item;
   const playbackRate = item.playbackRate || 1;
+  
   const { animationIn, animationOut, animationTimed } = getAnimations(
     animations!,
     item,
     frame,
     fps
   );
+
   const crop = details?.crop || {
     x: 0,
     y: 0,
     width: details.width,
     height: details.height
   };
+
   const { durationInFrames } = calculateFrames(item.display, fps);
   const currentFrame = (frame || 0) - (item.display.from * fps) / 1000;
 

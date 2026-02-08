@@ -6,7 +6,7 @@ import {
   IText,
   ITrackItem,
   ITrackItemAndDetails,
-  IVideo
+  IVideo,
 } from "@designcombo/types";
 import { useEffect, useState } from "react";
 import BasicText from "./basic-text";
@@ -17,37 +17,29 @@ import useStore from "../store/use-store";
 import useLayoutStore from "../store/use-layout-store";
 import BasicCaption from "./basic-caption";
 import { LassoSelect } from "lucide-react";
+import { useSelectionStore } from '../store/use-selection-store';
 
 const Container = ({ children }: { children: React.ReactNode }) => {
-  const { activeIds, trackItemsMap, transitionsMap } = useStore();
   const [trackItem, setTrackItem] = useState<ITrackItem | null>(null);
   const { setTrackItem: setLayoutTrackItem } = useLayoutStore();
+  
+  const { segments } = useSelectionStore();
+  const [activeSegment, setActiveSegment] = useState<any>(null);
 
-  useEffect(() => {
-    if (activeIds.length === 1) {
-      const [id] = activeIds;
-      const trackItem = trackItemsMap[id];
-      if (trackItem) {
-        setTrackItem(trackItem);
-        setLayoutTrackItem(trackItem);
-      } else console.log(transitionsMap[id]);
-    } else {
-      setTrackItem(null);
-      setLayoutTrackItem(null);
-    }
-  }, [activeIds, trackItemsMap]);
+  return <></>
 
   return (
     <div className="flex w-[272px] flex-none border-l border-border/80 bg-muted hidden lg:block">
       {React.cloneElement(children as React.ReactElement<any>, {
-        trackItem
+        trackItem,
+        activeSegment 
       })}
     </div>
   );
 };
 
 const ActiveControlItem = ({
-  trackItem
+  trackItem,
 }: {
   trackItem?: ITrackItemAndDetails;
 }) => {
@@ -62,15 +54,16 @@ const ActiveControlItem = ({
   return (
     <>
       {
-        {
+        /*{
           text: <BasicText trackItem={trackItem as ITrackItem & IText} />,
           caption: (
             <BasicCaption trackItem={trackItem as ITrackItem & ICaption} />
           ),
           image: <BasicImage trackItem={trackItem as ITrackItem & IImage} />,
           video: <BasicVideo trackItem={trackItem as ITrackItem & IVideo} />,
-          audio: <BasicAudio trackItem={trackItem as ITrackItem & IAudio} />
-        }[trackItem.type as "text"]
+          audio: <BasicAudio trackItem={trackItem as ITrackItem & IAudio} />,
+        }[trackItem.type as "text"]*/
+         <BasicVideo trackItem={trackItem as ITrackItem & IVideo} />
       }
     </>
   );

@@ -12,9 +12,11 @@ import {
 import { LAYER_PREFIX, LAYER_SELECTION } from "@designcombo/state";
 import { TIMELINE_SEEK, TIMELINE_PREFIX } from "@designcombo/timeline";
 import { getSafeCurrentFrame } from "../utils/time";
+import { useSelectionStore } from "../store/use-selection-store";
 
 const usePlayerEvents = () => {
   const { playerRef, fps, setState } = useStore();
+  const { setSelectedSegmentIds } = useSelectionStore();
 
   //handle player events
   useEffect(() => {
@@ -75,6 +77,7 @@ const usePlayerEvents = () => {
         setState({
           activeIds: obj.value?.payload.activeIds
         });
+        setSelectedSegmentIds(obj.value?.payload.activeIds)
       }
     });
     return () => selectionSubscription.unsubscribe();

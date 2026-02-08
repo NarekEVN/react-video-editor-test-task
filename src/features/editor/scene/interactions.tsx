@@ -7,7 +7,7 @@ import {
   SelectionInfo,
   emptySelection,
   getSelectionByIds,
-  getTargetById
+  getTargetById,
 } from "../utils/target";
 import useStore from "../store/use-store";
 import StateManager from "@designcombo/state";
@@ -15,8 +15,9 @@ import { getCurrentTime } from "../utils/time";
 import {
   calculateMinWidth,
   calculateTextHeight,
-  htmlToPlainText
+  htmlToPlainText,
 } from "../utils/text";
+import { useSelectionStore } from "../store/use-selection-store";
 
 let holdGroupPosition: Record<string, any> | null = null;
 let dragStartEnd = false;
@@ -34,14 +35,14 @@ const snapDirections = {
   bottom: true,
   right: true,
   center: true,
-  middle: true
+  middle: true,
 };
 
 function scaleDiv(
   selector: string,
   scale: number,
   currentWidth: number,
-  currentHeight: number
+  currentHeight: number,
 ) {
   const div = document.querySelector(selector) as HTMLDivElement | null;
   if (div) {
@@ -55,7 +56,7 @@ function scaleDiv(
 export function SceneInteractions({
   stateManager,
   containerRef,
-  zoom
+  zoom,
 }: SceneInteractionsProps) {
   const [targets, setTargets] = useState<HTMLDivElement[]>([]);
   const [selection, setSelection] = useState<Selection>();
@@ -65,8 +66,9 @@ export function SceneInteractions({
     trackItemsMap,
     playerRef,
     setSceneMoveableRef,
-    trackItemIds
+    trackItemIds,
   } = useStore();
+
   const moveableRef = useRef<Moveable>(null);
   const [selectionInfo, setSelectionInfo] =
     useState<SelectionInfo>(emptySelection);
@@ -79,9 +81,9 @@ export function SceneInteractions({
             typeof window !== "undefined" && window.CSS
               ? window.CSS.escape(id)
               : id
-          }`
+          }`,
       ),
-    [trackItemIds, activeIds]
+    [trackItemIds, activeIds],
   );
 
   useEffect(() => {
@@ -95,12 +97,18 @@ export function SceneInteractions({
         );
       });
       const targets = targetIds.map(
-        (id) => getTargetById(id) as HTMLDivElement
+        (id) => getTargetById(id) as HTMLDivElement,
       );
       selection?.setSelectedTargets(targets);
       const selInfo = getSelectionByIds(targetIds);
       setSelectionInfo(selInfo);
-      setTargets(selInfo.targets as HTMLDivElement[]);
+      // ✅ Check if video is selected
+      const hasVideoSelected = targetIds.some((id) => {
+        return trackItemsMap[id]?.type === "video";
+      });
+
+      // Clear targets if video selected (hides moveable border)
+      setTargets(hasVideoSelected ? [] : (selInfo.targets as HTMLDivElement[]));
     };
     const timer = setTimeout(() => {
       updateTargets();
@@ -129,28 +137,35 @@ export function SceneInteractions({
       selectableTargets: [".designcombo-scene-item"],
       selectFromInside: false,
       selectByClick: true,
-      toggleContinueSelect: "shift"
+      toggleContinueSelect: "shift",
     })
       .on("select", (e) => {
         // Filter out audio items from selection
         const filteredSelected = e.selected.filter(
-          (el) => !el.className.includes("designcombo-scene-item-type-audio")
+          (el) => !el.className.includes("designcombo-scene-item-type-audio"),
         );
 
         const ids = filteredSelected.map((el) =>
-          getIdFromClassName(el.className)
+          getIdFromClassName(el.className),
         );
 
-        setTargets(filteredSelected as HTMLDivElement[]);
+        const hasVideoSelected = filteredSelected.some((el) =>
+          el.className.includes("designcombo-scene-item-type-video"),
+        );
+
+        // Clear targets if video selected (hides moveable border)
+        setTargets(
+          hasVideoSelected ? [] : (filteredSelected as HTMLDivElement[]),
+        );
 
         stateManager.updateState(
           {
-            activeIds: ids
+            activeIds: ids,
           },
           {
             updateHistory: false,
-            kind: "layer:selection"
-          }
+            kind: "layer:selection",
+          },
         );
       })
       .on("dragStart", (e) => {
@@ -182,24 +197,29 @@ export function SceneInteractions({
         } else {
           // Filter out audio items from selection
           const filteredSelected = e.selected.filter(
-            (el) => !el.className.includes("designcombo-scene-item-type-audio")
+            (el) => !el.className.includes("designcombo-scene-item-type-audio"),
           ) as HTMLDivElement[];
 
           const ids = filteredSelected.map((el) =>
-            getIdFromClassName(el.className)
+            getIdFromClassName(el.className),
           );
 
           stateManager.updateState(
             {
-              activeIds: ids
+              activeIds: ids,
             },
             {
               updateHistory: false,
-              kind: "layer:selection"
-            }
+              kind: "layer:selection",
+            },
           );
 
-          setTargets(filteredSelected);
+          // ✅ Check if video is selected
+          const hasVideoSelected = filteredSelected.some((el) =>
+            el.className.includes("designcombo-scene-item-type-video"),
+          );
+
+          setTargets(hasVideoSelected ? [] : filteredSelected);
         }
       });
     setSelection(selection);
@@ -212,7 +232,11 @@ export function SceneInteractions({
     const activeSelectionSubscription = stateManager.subscribeToActiveIds(
       (newState) => {
         setState(newState);
-      }
+
+        const activeIds = newState?.["activeIds"] || [];
+        const { setSelectedSegmentIds } = useSelectionStore.getState();
+        setSelectedSegmentIds(activeIds);
+      },
     );
 
     return () => {
@@ -258,10 +282,10 @@ export function SceneInteractions({
             [targetId]: {
               details: {
                 left: target.style.left,
-                top: target.style.top
-              }
-            }
-          }
+                top: target.style.top,
+              },
+            },
+          },
         });
       }}
       onScale={({ target, transform, direction }) => {
@@ -320,10 +344,10 @@ export function SceneInteractions({
               details: {
                 transform: target.style.transform,
                 left: Number.parseFloat(target.style.left),
-                top: Number.parseFloat(target.style.top)
-              }
-            }
-          }
+                top: Number.parseFloat(target.style.top),
+              },
+            },
+          },
         });
       }}
       onRotate={({ target, transform }) => {
@@ -336,10 +360,10 @@ export function SceneInteractions({
           payload: {
             [targetId]: {
               details: {
-                transform: target.style.transform
-              }
-            }
-          }
+                transform: target.style.transform,
+              },
+            },
+          },
         });
       }}
       onDragGroup={({ events }) => {
@@ -358,7 +382,7 @@ export function SceneInteractions({
           event.target.style.top = `${top}px`;
           holdGroupPosition[id] = {
             left: left,
-            top: top
+            top: top,
           };
         }
       }}
@@ -366,7 +390,7 @@ export function SceneInteractions({
         target,
         width: nextWidth,
         height: nextHeight,
-        direction
+        direction,
       }) => {
         const id = getIdFromClassName(target.className);
         if (direction[1] === 1 || direction[1] === -1) {
@@ -375,7 +399,7 @@ export function SceneInteractions({
             const updateData: any = {
               width: nextWidth,
               height: nextHeight,
-              left: parseFloat(target.style.left)
+              left: parseFloat(target.style.left),
             };
             if (direction[1] === -1) {
               const newTop = `${parseFloat(target.style.top) - diffWidth}px`;
@@ -391,10 +415,10 @@ export function SceneInteractions({
                   ...trackItemsMap[id],
                   details: {
                     ...trackItemsMap[id].details,
-                    ...updateData
-                  }
-                }
-              }
+                    ...updateData,
+                  },
+                },
+              },
             });
             return;
           }
@@ -427,7 +451,7 @@ export function SceneInteractions({
                 textShadow: textEl.style.textShadow,
                 webkitTextStroke: textEl.style.webkitTextStroke,
                 width: nextWidth + "px",
-                textTransform: textEl.style.textTransform
+                textTransform: textEl.style.textTransform,
               });
 
               // Use the larger of the requested height or minimum content height
@@ -445,7 +469,7 @@ export function SceneInteractions({
                 animationDiv.style.height = `${finalHeight}px`;
 
                 const textDiv = document.querySelector(
-                  `[data-text-id="${id}"]`
+                  `[data-text-id="${id}"]`,
                 ) as HTMLDivElement;
                 if (textDiv) {
                   textDiv.style.width = `${nextWidth}px`;
@@ -462,10 +486,10 @@ export function SceneInteractions({
                     details: {
                       ...trackItemsMap[id].details,
                       width: nextWidth,
-                      height: finalHeight
-                    }
-                  }
-                }
+                      height: finalHeight,
+                    },
+                  },
+                },
               });
               return;
             }
@@ -495,7 +519,7 @@ export function SceneInteractions({
                 `[data-text-id="${id}"]`,
                 scale,
                 currentWidth,
-                currentHeight
+                currentHeight,
               );
             } else if (trackItemsMap[id].type === "caption") {
               scaleDiv(`#caption-${id}`, scale, currentWidth, currentHeight);
@@ -524,7 +548,7 @@ export function SceneInteractions({
               textShadow: textEl!.style.textShadow,
               webkitTextStroke: textEl!.style.webkitTextStroke,
               width: nextWidth + "px",
-              textTransform: textEl!.style.textTransform
+              textTransform: textEl!.style.textTransform,
             });
 
             const validHeight = calculateTextHeight({
@@ -537,7 +561,7 @@ export function SceneInteractions({
               textShadow: textEl!.style.textShadow,
               webkitTextStroke: textEl!.style.webkitTextStroke,
               width: nextWidth + "px",
-              textTransform: textEl!.style.textTransform
+              textTransform: textEl!.style.textTransform,
             });
 
             const minWidth = calculateMinWidth({
@@ -549,7 +573,7 @@ export function SceneInteractions({
               text: (textEl! as HTMLDivElement).innerText,
               textShadow: textEl!.style.textShadow,
               webkitTextStroke: textEl!.style.webkitTextStroke,
-              textTransform: textEl!.style.textTransform
+              textTransform: textEl!.style.textTransform,
             });
             target.style.width = nextWidth + "px";
             target.style.minWidth = minWidth + "px";
@@ -567,7 +591,7 @@ export function SceneInteractions({
                 type === "text" ? `[data-text-id="${id}"]` : `#caption-${id}`;
 
               const textDiv = document.querySelector(
-                selector
+                selector,
               ) as HTMLDivElement | null;
 
               if (textDiv) {
@@ -581,10 +605,10 @@ export function SceneInteractions({
                   [id]: {
                     details: {
                       width: nextWidth,
-                      height: newHeight
-                    }
-                  }
-                }
+                      height: newHeight,
+                    },
+                  },
+                },
               });
             }
           }
@@ -595,7 +619,7 @@ export function SceneInteractions({
             const updateData: any = {
               width: nextWidth,
               height: nextHeight,
-              left: parseFloat(target.style.left)
+              left: parseFloat(target.style.left),
             };
             if (direction[0] === -1) {
               const diffWidth = nextWidth - currentWidth;
@@ -614,10 +638,10 @@ export function SceneInteractions({
                   details: {
                     ...trackItemsMap[id].details,
                     width: nextWidth,
-                    height: nextHeight
-                  }
-                }
-              }
+                    height: nextHeight,
+                  },
+                },
+              },
             });
           }
         }
@@ -642,10 +666,10 @@ export function SceneInteractions({
                   ...trackItemsMap[targetId].details,
                   width: parseFloat(target.style.width),
                   height: parseFloat(target.style.height),
-                  fontSize: parseFloat(textDiv.style.fontSize)
-                }
-              }
-            }
+                  fontSize: parseFloat(textDiv.style.fontSize),
+                },
+              },
+            },
           });
         }
       }}
@@ -658,12 +682,12 @@ export function SceneInteractions({
             payload[id] = {
               details: {
                 top: `${top}px`,
-                left: `${left}px`
-              }
+                left: `${left}px`,
+              },
             };
           }
           dispatch(EDIT_OBJECT, {
-            payload: payload
+            payload: payload,
           });
           holdGroupPosition = null;
         }

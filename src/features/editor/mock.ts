@@ -1,4 +1,4 @@
-export const design = {
+/*export const design = {
     "id": "Wgp84CB2FzHWoaDL",
     "fps": 30,
     "tracks": [
@@ -840,4 +840,62 @@ export const design = {
         }
     },
     "transitionIds": []
-}
+}*/
+export const design = {
+  id: "Wgp84CB2FzHWoaDL",
+  fps: 30,
+  tracks: [],
+  size: {
+    width: 1920,
+    height: 1080
+  },
+  trackItemIds: ["Sg1khxvLnuxK9gwN"],
+  trackItemsMap: {
+    "Sg1khxvLnuxK9gwN": {
+      id: "Sg1khxvLnuxK9gwN",
+      type: "video",
+      name: "video",
+      details: {
+        src: "/nature.mp4",
+        width: 1920,
+        height: 1080,
+        opacity: 100,
+        volume: 100,
+        top: "0px",
+        left: "0px",
+        transform: "none",
+        borderRadius: 0,
+        borderWidth: 0,
+        borderColor: "#000000",
+        boxShadow: {
+          color: "#000000",
+          x: 0,
+          y: 0,
+          blur: 0
+        },
+        blur: 0,
+        brightness: 100,
+        flipX: false,
+        flipY: false,
+        rotate: "0deg",
+        visibility: "visible"
+      },
+      metadata: {
+        previewUrl: "/nature.png"
+      },
+      trim: {
+        from: 0,
+        to: 7445
+      },
+      display: {
+        from: 0,
+        to: 7445
+      },
+      duration: 7445,
+      playbackRate: 1,
+      isMain: true
+    }
+  },
+  transitionsMap: {},
+  transitionIds: []
+};

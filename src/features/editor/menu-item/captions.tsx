@@ -6,11 +6,11 @@ import {
   SelectTrigger,
   SelectValue
 } from "@/components/ui/select";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { generateCaptions } from "../utils/captions";
 import { loadFonts } from "../utils/fonts";
 import { dispatch } from "@designcombo/events";
-import { ADD_CAPTIONS, ADD_ITEMS } from "@designcombo/state";
+import { ADD_ITEMS } from "@designcombo/state";
 import { ITrackItem, ITrackItemsMap } from "@designcombo/types";
 import { millisecondsToHHMMSS } from "../utils/format";
 import useStore from "../store/use-store";
@@ -259,21 +259,21 @@ const CaptionItem = ({
   isActive?: boolean;
 }) => {
   const { display, details } = item;
-  // const [timeline, setTimeline] = useState(0);
-  // const { fps, playerRef } = useStore();
-  // const currentFrame = useCurrentPlayerFrame(playerRef!);
-  // const [inRange, setInRange] = useState(false);
-  // useEffect(() => {
-  //   setTimeline(currentFrame / fps);
-  // }, [currentFrame, fps]);
+  const [timeline, setTimeline] = useState(0);
+  const { fps, playerRef } = useStore();
+  const currentFrame = useCurrentPlayerFrame(playerRef!);
+  const [inRange, setInRange] = useState(false);
+  useEffect(() => {
+     setTimeline(currentFrame / fps);
+  }, [currentFrame, fps]);
 
-  // const isInRange = useCallback(() => {
-  //   return timeline >= display.from / 1000 && timeline <= display.to / 1000;
-  // }, [timeline, display.from, display.to]);
+  const isInRange = useCallback(() => {
+     return timeline >= display.from / 1000 && timeline <= display.to / 1000;
+   }, [timeline, display.from, display.to]);
 
-  // useEffect(() => {
-  //   setInRange(isInRange());
-  // }, [timeline, isInRange]);
+   useEffect(() => {
+    setInRange(isInRange());
+  }, [timeline, isInRange]);
 
   const handleSeek = (time: number) => {
     dispatch(PLAYER_SEEK, { payload: { time: time } });

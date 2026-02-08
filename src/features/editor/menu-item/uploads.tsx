@@ -7,50 +7,62 @@ import {
   Image as ImageIcon,
   Video as VideoIcon,
   Loader2,
-  UploadIcon
+  UploadIcon,
+  FolderOpen,
+  PlusIcon,
+  Save,
 } from "lucide-react";
 import { generateId } from "@designcombo/timeline";
 import { Button } from "@/components/ui/button";
 import useUploadStore from "../store/use-upload-store";
 import ModalUpload from "@/components/modal-upload";
+import { useState } from "react";
+import { SelectionGroupsModal } from "../selection-groups-modal";
+import { SaveSelectionGroupModal } from "../save-selection-group-modal";
+import { useSelectionStore } from "../store/use-selection-store";
 
 export const Uploads = () => {
   const { setShowUploadModal, uploads, pendingUploads, activeUploads } =
     useUploadStore();
 
-  // Group completed uploads by type
+  const [showSelectionGroupsModal, setShowSelectionGroupsModal] =
+    useState(false);
+  const [showSaveModal, setShowSaveModal] = useState(false);
+  const { segments, currentGroupName, clearCurrentGroup } =
+    useSelectionStore();
+
   const videos = uploads.filter(
-    (upload) => upload.type?.startsWith("video/") || upload.type === "video"
+    (upload) => upload.type?.startsWith("video/") || upload.type === "video",
   );
   const images = uploads.filter(
-    (upload) => upload.type?.startsWith("image/") || upload.type === "image"
+    (upload) => upload.type?.startsWith("image/") || upload.type === "image",
   );
   const audios = uploads.filter(
-    (upload) => upload.type?.startsWith("audio/") || upload.type === "audio"
+    (upload) => upload.type?.startsWith("audio/") || upload.type === "audio",
   );
 
-  const handleAddVideo = (video: any) => {
+  const handleAddVideo = (video: { metadata: { uploadedUrl: string; }; url: string; }) => {
     const srcVideo = video.metadata?.uploadedUrl || video.url;
 
     dispatch(ADD_VIDEO, {
       payload: {
         id: generateId(),
         details: {
-          src: srcVideo
+          src: srcVideo,
         },
         metadata: {
           previewUrl:
-            "https://cdn.designcombo.dev/caption_previews/static_preset1.webp"
-        }
+            "https://cdn.designcombo.dev/caption_previews/static_preset1.webp",
+        },
       },
       options: {
         resourceId: "main",
-        scaleMode: "fit"
-      }
+        scaleMode: "fit",
+      },
     });
   };
 
-  const handleAddImage = (image: any) => {
+  const handleAddImage = (image: { metadata: { uploadedUrl: string; }; url: string; }) => {
     const srcImage = image.metadata?.uploadedUrl || image.url;
 
     dispatch(ADD_IMAGE, {
@@ -59,43 +71,36 @@ export const Uploads = () => {
         type: "image",
         display: {
           from: 0,
-          to: 5000
+          to: 5000,
         },
         details: {
-          src: srcImage
+          src: srcImage,
         },
-        metadata: {}
+        metadata: {},
       },
-      options: {}
+      options: {},
     });
   };
 
-  const handleAddAudio = (audio: any) => {
+  const handleAddAudio = (audio: { metadata: { uploadedUrl: string; }; url: string; }) => {
     const srcAudio = audio.metadata?.uploadedUrl || audio.url;
     dispatch(ADD_AUDIO, {
       payload: {
         id: generateId(),
         type: "audio",
         details: {
-          src: srcAudio
+          src: srcAudio,
         },
-        metadata: {}
+        metadata: {},
       },
-      options: {}
+      options: {},
     });
   };
 
-  const UploadPrompt = () => (
-    <div className="flex items-center justify-center px-4">
-      <Button
-        className="w-full cursor-pointer"
-        onClick={() => setShowUploadModal(true)}
-      >
-        <UploadIcon className="w-4 h-4" />
-        <span className="ml-2">Upload</span>
-      </Button>
-    </div>
-  );
+  const handleNewSelectionGroup = () => {
+    clearCurrentGroup();
+    setShowSaveModal(true);
+  };
 
   return (
     <div className="flex flex-1 flex-col">
@@ -103,9 +108,69 @@ export const Uploads = () => {
         Your uploads
       </div>
       <ModalUpload />
-      <UploadPrompt />
 
-      {/* Uploads in Progress Section */}
+      <div className="flex items-center justify-center px-4">
+        <Button
+          className="w-full cursor-pointer"
+          onClick={() => setShowUploadModal(true)}
+        >
+          <UploadIcon className="w-4 h-4" />
+          <span className="ml-2">Upload</span>
+        </Button>
+      </div>
+
+      {currentGroupName && (
+        <div className="mx-4 mt-3 rounded-md border border-border/80 bg-primary/5 px-3 py-2">
+          <div className="text-xs text-muted-foreground">Current group</div>
+          <div className="text-sm font-medium truncate">{currentGroupName}</div>
+        </div>
+      )}
+
+      <div className="flex items-center justify-center px-4 mt-2">
+        <Button
+          className="w-full cursor-pointer"
+          variant="default"
+          onClick={() => setShowSaveModal(true)}
+          disabled={segments.length === 0}
+        >
+          <Save className="w-4 h-4" />
+          <span className="ml-2">Save Selection</span>
+        </Button>
+      </div>
+
+      <div className="flex items-center justify-center px-4 mt-2">
+        <Button
+          className="w-full cursor-pointer"
+          variant="outline"
+          onClick={handleNewSelectionGroup}
+          disabled={segments.length === 0}
+        >
+          <PlusIcon className="w-4 h-4" />
+          <span className="ml-2">New Selection Group</span>
+        </Button>
+      </div>
+
+      <div className="flex items-center justify-center px-4 mt-2">
+        <Button
+          className="w-full cursor-pointer"
+          variant="outline"
+          onClick={() => setShowSelectionGroupsModal(true)}
+        >
+          <FolderOpen className="w-4 h-4" />
+          <span className="ml-2">Load Selection</span>
+        </Button>
+      </div>
+
+      <SaveSelectionGroupModal
+        open={showSaveModal}
+        onOpenChange={setShowSaveModal}
+      />
+
+      <SelectionGroupsModal
+        open={showSelectionGroupsModal}
+        onOpenChange={setShowSelectionGroupsModal}
+      />
+
       {(pendingUploads.length > 0 || activeUploads.length > 0) && (
         <div className="p-4">
           <div className="font-medium text-sm mb-2 flex items-center gap-2">
@@ -140,7 +205,6 @@ export const Uploads = () => {
       )}
 
       <div className="flex flex-col gap-10 p-4">
-        {/* Videos Section */}
         {videos.length > 0 && (
           <div>
             <div className="flex items-center gap-2 mb-2">
@@ -170,7 +234,6 @@ export const Uploads = () => {
           </div>
         )}
 
-        {/* Images Section */}
         {images.length > 0 && (
           <div>
             <div className="flex items-center gap-2 mb-2">
@@ -200,7 +263,6 @@ export const Uploads = () => {
           </div>
         )}
 
-        {/* Audios Section */}
         {audios.length > 0 && (
           <div>
             <div className="flex items-center gap-2 mb-2">

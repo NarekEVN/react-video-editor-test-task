@@ -451,6 +451,7 @@ function renderLineBasedWords(
     updatedDetails.linesPerCaption - 1
   );
 
+  
   return lines.map((lineWords, lineIndex) => (
     <div
       key={lineIndex}

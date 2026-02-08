@@ -8,7 +8,7 @@ import {
   MouseEvent,
   TouchEvent
 } from "react";
-
+//@ts-ignore
 import Markers from "./markers";
 import { css } from "@emotion/react";
 import { getGradient } from "../utils";

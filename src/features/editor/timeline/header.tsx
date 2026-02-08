@@ -4,7 +4,7 @@ import {
   ACTIVE_SPLIT,
   LAYER_CLONE,
   LAYER_DELETE,
-  TIMELINE_SCALE_CHANGED
+  TIMELINE_SCALE_CHANGED,
 } from "@designcombo/state";
 import { PLAYER_PAUSE, PLAYER_PLAY } from "../constants/events";
 import { frameToTimeString, getCurrentTime, timeToString } from "../utils/time";
@@ -14,15 +14,18 @@ import {
   getFitZoomLevel,
   getNextZoomLevel,
   getPreviousZoomLevel,
-  getZoomByIndex
+  getZoomByIndex,
+  timeMsToUnits,
 } from "../utils/timeline";
 import { useCurrentPlayerFrame } from "../hooks/use-current-frame";
 import { Slider } from "@/components/ui/slider";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import useUpdateAnsestors from "../hooks/use-update-ansestors";
 import { ITimelineScaleState } from "@designcombo/types";
 import { useIsLargeScreen } from "@/hooks/use-media-query";
 import { useTimelineOffsetX } from "../hooks/use-timeline-offset";
+import { useSelectionStore } from "../store/use-selection-store";
+import { useSelectionPlayback } from "../hooks/use-selection-playback";
 
 const IconPlayerPlayFilled = ({ size }: { size: number }) => (
   <svg
@@ -83,11 +86,122 @@ const IconPlayerSkipForward = ({ size }: { size: number }) => (
 );
 const Header = () => {
   const [playing, setPlaying] = useState(false);
+  const [selectionPlaying, setSelectionPlaying] = useState(false);
   const { duration, fps, scale, playerRef, activeIds } = useStore();
   const isLargeScreen = useIsLargeScreen();
   useUpdateAnsestors({ playing, playerRef });
-
   const currentFrame = useCurrentPlayerFrame(playerRef);
+  const { selectedSegmentIds } = useSelectionStore();
+  const spaceTimeoutRef = useRef<number | null>(null);
+  const lastSpaceTimeRef = useRef(0);
+  const { playSelectedSegments, stopSelectionPlayback, isSelectionPlaying } =
+    useSelectionPlayback();
+
+  useEffect(() => {
+    const player = playerRef?.current;
+    if (!player) return;
+
+    const onPlay = () => {
+      if (isSelectionPlaying()) {
+        setSelectionPlaying(true);
+      }
+    };
+    const onPause = () => {
+      setTimeout(() => {
+        if (!isSelectionPlaying()) {
+          setSelectionPlaying(false);
+        }
+      }, 50);
+    };
+
+    player.addEventListener("play", onPlay);
+    player.addEventListener("pause", onPause);
+    return () => {
+      player.removeEventListener("play", onPlay);
+      player.removeEventListener("pause", onPause);
+    };
+  }, [playerRef, isSelectionPlaying]);
+
+  const togglePlay = useCallback(() => {
+    if (playing) {
+      handlePause();
+    } else {
+      handlePlay();
+    }
+  }, [playing]);
+
+  const toggleSelectionPlay = useCallback(() => {
+    if (selectionPlaying) {
+      stopSelectionPlayback();
+      setSelectionPlaying(false);
+    } else {
+      if (playing) {
+        dispatch(PLAYER_PAUSE);
+      }
+      setSelectionPlaying(true);
+      playSelectedSegments();
+    }
+  }, [selectionPlaying]);
+
+  const goBack = useCallback(() => {
+    // reuse existing behavior (same as your button)
+    doActiveDelete(); // or replace with real UNDO event when available
+  }, []);
+
+  const onKeyDown = useCallback(
+    (e: KeyboardEvent) => {
+      // Ignore typing in inputs
+      const target = e.target as HTMLElement;
+      if (
+        target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.isContentEditable
+      ) {
+        return;
+      }
+
+      // CMD / CTRL + Z
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "z") {
+        e.preventDefault();
+        goBack();
+        return;
+      }
+
+      // SPACE logic
+      if (e.code === "Space") {
+        e.preventDefault();
+
+        const now = Date.now();
+        const delta = now - lastSpaceTimeRef.current;
+        lastSpaceTimeRef.current = now;
+
+        // Double space (within 250ms)
+        if (delta < 250) {
+          if (spaceTimeoutRef.current) {
+            clearTimeout(spaceTimeoutRef.current);
+            spaceTimeoutRef.current = null;
+          }
+          toggleSelectionPlay();
+          return;
+        }
+
+        // Single space (wait a bit in case second space comes)
+        spaceTimeoutRef.current = window.setTimeout(() => {
+          togglePlay();
+          spaceTimeoutRef.current = null;
+        }, 250);
+      }
+    },
+    [togglePlay, toggleSelectionPlay],
+  );
+
+  useEffect(() => {
+    document.addEventListener("keydown", onKeyDown, false);
+
+    return () => {
+      document.removeEventListener("keydown", onKeyDown, false);
+    };
+  }, [onKeyDown]);
 
   const doActiveDelete = () => {
     dispatch(LAYER_DELETE);
@@ -97,16 +211,33 @@ const Header = () => {
     dispatch(ACTIVE_SPLIT, {
       payload: {},
       options: {
-        time: getCurrentTime()
-      }
+        time: getCurrentTime(),
+      },
     });
   };
 
-  const changeScale = (scale: ITimelineScaleState) => {
+  const changeScale = (newScale: ITimelineScaleState) => {
+    const currentFrame = playerRef?.current?.getCurrentFrame() || 0;
+    const currentTimeMs = (currentFrame / fps) * 1000;
+
+    const playheadPosBefore = timeMsToUnits(currentTimeMs, scale.zoom);
+
+    const timelineContainer = document.getElementById("timeline-container");
+    const viewportWidth = timelineContainer?.clientWidth || 0;
+    const viewportCenter = viewportWidth / 2;
+
+    console.log("[Zoom] Before:", {
+      currentTimeMs,
+      oldZoom: scale.zoom,
+      newZoom: newScale.zoom,
+      playheadPosBefore,
+      viewportCenter,
+    });
+
     dispatch(TIMELINE_SCALE_CHANGED, {
       payload: {
-        scale
-      }
+        scale: newScale,
+      },
     });
   };
 
@@ -140,7 +271,7 @@ const Header = () => {
       style={{
         position: "relative",
         height: "50px",
-        flex: "none"
+        flex: "none",
       }}
     >
       <div
@@ -149,7 +280,7 @@ const Header = () => {
           height: 50,
           width: "100%",
           display: "flex",
-          alignItems: "center"
+          alignItems: "center",
         }}
       >
         <div
@@ -160,7 +291,7 @@ const Header = () => {
             gridTemplateColumns: isLargeScreen
               ? "1fr 260px 1fr"
               : "1fr 1fr 1fr",
-            alignItems: "center"
+            alignItems: "center",
           }}
         >
           <div className="flex px-2">
@@ -232,6 +363,24 @@ const Header = () => {
               >
                 <IconPlayerSkipForward size={14} />
               </Button>
+              <Button
+                onClick={toggleSelectionPlay}
+                disabled={selectedSegmentIds.size === 0}
+                variant={"ghost"}
+                size={"icon"}
+                title="Play selected segments"
+                className="relative"
+              >
+                {selectionPlaying ? (
+                  <span className="text-yellow-400">
+                    <IconPlayerPauseFilled size={14} />
+                  </span>
+                ) : (
+                  <span className="text-yellow-400">
+                    <IconPlayerPlayFilled size={14} />
+                  </span>
+                )}
+              </Button>
             </div>
             <div
               className="text-xs font-light flex"
@@ -239,14 +388,14 @@ const Header = () => {
                 alignItems: "center",
                 gridTemplateColumns: "54px 4px 54px",
                 paddingTop: "2px",
-                justifyContent: "center"
+                justifyContent: "center",
               }}
             >
               <div
                 className="font-medium text-zinc-200"
                 style={{
                   display: "flex",
-                  justifyContent: "center"
+                  justifyContent: "center",
                 }}
                 data-current-time={currentFrame / fps}
                 id="video-current-time"
@@ -258,7 +407,7 @@ const Header = () => {
                 className="text-muted-foreground hidden lg:block"
                 style={{
                   display: "flex",
-                  justifyContent: "center"
+                  justifyContent: "center",
                 }}
               >
                 {timeToString({ time: duration })}
@@ -280,7 +429,7 @@ const Header = () => {
 const ZoomControl = ({
   scale,
   onChangeTimelineScale,
-  duration
+  duration,
 }: {
   scale: ITimelineScaleState;
   onChangeTimelineScale: (scale: ITimelineScaleState) => void;

@@ -16,7 +16,7 @@ const Scene = forwardRef<
 >(({ stateManager }, ref) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const { size, trackItemIds } = useStore();
-  const { zoom, handlePinch, recalculateZoom } = useZoom(
+  const { zoom, recalculateZoom } = useZoom(
     containerRef as React.RefObject<HTMLDivElement>,
     size
   );
